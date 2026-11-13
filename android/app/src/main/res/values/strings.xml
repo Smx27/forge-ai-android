@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Forge</string>
+    <string name="widget_label">New chat</string>
+    <string name="widget_prompt">Ask Forge to build…</string>
+    <string name="widget_description">Start a new Forge chat in one tap</string>
+    <string name="tile_label">Forge chat</string>
+    <string name="shortcut_new_chat">New chat</string>
+</resources>

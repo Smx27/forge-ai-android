@@ -1,0 +1,87 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'com.facebook.react'
+
+react { autolinkLibrariesWithApp() }
+
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProps.load(it) }
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+    namespace 'com.forge'
+    defaultConfig {
+        applicationId 'com.forge.app'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 110
+        versionName '1.1.0'
+        ndk { abiFilters(*reactNativeArchitectures()) }
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        if (keystoreProps['storeFile']) {
+            release {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            applicationIdSuffix '.debug'
+        }
+        release {
+            signingConfig keystoreProps['storeFile'] ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            debuggable false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk { debugSymbolLevel 'SYMBOL_TABLE' }
+        }
+    }
+    packagingOptions {
+        jniLibs { useLegacyPackaging true }
+        resources { excludes += ['META-INF/*.version', 'META-INF/**/LICENSE*', 'META-INF/*.kotlin_module', 'DebugProbesKt.bin', 'kotlin-tooling-metadata.json'] }
+    }
+    dependenciesInfo {
+        includeInApk false
+        includeInBundle false
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def storeTask = graph.allTasks.find { it.name == 'bundleRelease' }
+    if (storeTask && !keystoreProps['storeFile']) {
+        throw new GradleException('bundleRelease needs an upload key. Run scripts/create-upload-key.sh and fill android/keystore.properties before building a Play Store bundle.')
+    }
+}
+
+def reactNativeArchitectures() {
+    def value = project.getProperties().get('reactNativeArchitectures')
+    return value ? value.split(',') : ['arm64-v8a', 'x86_64']
+}
+
+dependencies {
+    implementation('com.facebook.react:react-android')
+    implementation('com.facebook.react:hermes-android')
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force 'com.squareup.okhttp3:okhttp:4.12.0', 'com.squareup.okhttp3:okhttp-urlconnection:4.12.0', 'com.squareup.okio:okio:3.9.1'
+    }
+}
